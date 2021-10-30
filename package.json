@@ -1,0 +1,24 @@
+{
+  "name": "runnode",
+  "version": "1.0.0",
+  "description": "mediasoup trials",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon app.js"
+  },
+  "author": "cq lej",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.17.1",
+    "httpolyglot": "^0.1.2",
+    "mediasoup": "^3.9.0",
+    "mediasoup-client": "^3.6.43",
+    "socket.io": "^4.3.1",
+    "socket.io-client": "^4.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.14"
+  }
+}
