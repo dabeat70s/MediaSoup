@@ -14525,7 +14525,7 @@ const getRtpCapabilities = () => {
 
 btnLocalVideo.addEventListener('click', getLocalStream);
 btnRtpCapabilities.addEventListener('click', getRtpCapabilities)
-// btnDevice.addEventListener('click', createDevice)
+btnDevice.addEventListener('click', createDevice)
 // btnCreateSendTransport.addEventListener('click', createSendTransport)
 // btnConnectSendTransport.addEventListener('click', connectSendTransport)
 // btnRecvSendTransport.addEventListener('click', createRecvTransport)
