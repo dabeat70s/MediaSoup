@@ -88,4 +88,15 @@ peers.on('connection', async socket =>{
    // worker.createRouter(options), options = { mediaCodecs, appData }, mediaCodecs -> defined above, appData -> custom application data - we are not supplying any, none of the two are required
   router = await worker.createRouter({ mediaCodecs });
 
+  // Client emits a request for RTP Capabilities. This event responds to the request
+  socket.on('getRtpCapabilities', (callback) => {
+
+    const rtpCapabilities = router.rtpCapabilities
+
+    console.log('rtp Capabilities', rtpCapabilities)
+
+    // call callback from the client and send back the rtpCapabilities
+    callback({ rtpCapabilities })
+  });
+
 });
