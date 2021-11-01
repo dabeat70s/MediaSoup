@@ -6,20 +6,20 @@ import fs from 'fs';
 import path from 'path';
 const __dirname = path.resolve();
 
-import {Server} from 'socket.io';
+import { Server } from 'socket.io';
 import mediasoup from 'mediasoup';
 
 app.get('/', (req, res) => {
-    res.send('Hi from mediasoup app by CQ LEJ!');
+  res.send('Hi from mediasoup app by CQ LEJ!');
 });
 
 //express middleware to serve static files from public folder
 app.use('/sfu', express.static(path.join(__dirname, 'public')))
 // SSL cert for HTTPS access
 const options = {
-    key: fs.readFileSync('./server/ssl/key.pem', 'utf-8'),
-    cert: fs.readFileSync('./server/ssl/cert.pem', 'utf-8')
-  }
+  key: fs.readFileSync('./server/ssl/key.pem', 'utf-8'),
+  cert: fs.readFileSync('./server/ssl/cert.pem', 'utf-8')
+}
 
 const httpsServer = https.createServer(options, app)
 httpsServer.listen(3000, () => {
@@ -36,6 +36,7 @@ let worker;
 let router;
 let producerTransport;
 let consumerTransport;
+let producer;
 
 const createWorker = async () => {
   worker = await mediasoup.createWorker({
@@ -76,18 +77,19 @@ const mediaCodecs = [
 ]
 
 
-peers.on('connection', async socket =>{
-  console.log('socket id = ',socket.id);
+peers.on('connection', async socket => {
+  console.log('socket id = ', socket.id);
   socket.emit('connection-success', {
-      socketId: socket.id
+    socketId: socket.id
   });
 
   socket.on('disconnect', () => {
     // do some cleanup
-    console.log('peer disconnected**')
+    console.log('peer disconnected**');
   });
 
-   // worker.createRouter(options), options = { mediaCodecs, appData }, mediaCodecs -> defined above, appData -> custom application data - we are not supplying any, none of the two are required
+
+  // worker.createRouter(options), options = { mediaCodecs, appData }, mediaCodecs -> defined above, appData -> custom application data - we are not supplying any, none of the two are required
   router = await worker.createRouter({ mediaCodecs });
 
   // Client emits a request for RTP Capabilities. This event responds to the request
@@ -101,15 +103,45 @@ peers.on('connection', async socket =>{
     callback({ rtpCapabilities })
   });
 
-    // Client emits a request to create server side Transport. We need to differentiate between the producer and consumer transports
+  // Client emits a request to create server side Transport. We need to differentiate between the producer and consumer transports
   socket.on('createWebRtcTransport', async ({ sender }, callback) => {
     console.log(`Is this a sender request? ${sender}`)
     // The client indicates if it is a producer or a consumer, if sender is true, indicates a producer else a consumer
     if (sender)
-      producerTransport = await createWebRtcTransport(callback)
+      producerTransport = await createWebRtcTransport(callback);
     else
-      consumerTransport = await createWebRtcTransport(callback)
+      consumerTransport = await createWebRtcTransport(callback);
   });
+
+
+  // see client's socket.emit('transport-connect', ...)
+  socket.on('transport-connect', async ({ dtlsParameters }) => {
+    console.log('DTLS PARAMS... ', { dtlsParameters });
+    await producerTransport.connect({ dtlsParameters });
+  })
+
+  // see client's socket.emit('transport-produce', ...)
+  socket.on('transport-produce', async ({ kind, rtpParameters, appData }, callback) => {
+    // call produce based on the prameters from the client
+    producer = await producerTransport.produce({
+      kind,
+      rtpParameters,
+    });
+
+    console.log('Producer ID: ', producer.id, producer.kind);
+
+    producer.on('transportclose', () => {
+      console.log('transport for this producer closed ');
+      producer.close();
+    });
+
+    // Send back to the client the Producer's id
+    callback({
+      id: producer.id
+    });
+  });
+
+
 
 });
 
