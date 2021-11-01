@@ -148,6 +148,54 @@ peers.on('connection', async socket => {
     await consumerTransport.connect({ dtlsParameters });
   });
 
+  socket.on('consume', async ({ rtpCapabilities }, callback) => {
+    try {
+      // check if the router can consume the specified producer
+      if (router.canConsume({
+        producerId: producer.id,
+        rtpCapabilities
+      })) {
+        // transport can now consume and return a consumer
+        consumer = await consumerTransport.consume({
+          producerId: producer.id,
+          rtpCapabilities,
+          paused: true,
+        });
+
+        consumer.on('transportclose', () => {
+          console.log('transport close from consumer');
+        });
+
+        consumer.on('producerclose', () => {
+          console.log('producer of consumer closed');
+        });
+
+        // from the consumer extract the following params to send back to the Client
+        const params = {
+          id: consumer.id,
+          producerId: producer.id,
+          kind: consumer.kind,
+          rtpParameters: consumer.rtpParameters,
+        };
+
+        // send the parameters to the client
+        callback({ params });
+      }
+    } catch (error) {
+      console.log(error.message)
+      callback({
+        params: {
+          error: error
+        }
+      });
+    }
+  });
+
+  socket.on('consumer-resume', async () => {
+    console.log('consumer resume');
+    await consumer.resume()
+  });
+
 
 
 });
