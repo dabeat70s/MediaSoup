@@ -37,6 +37,7 @@ let router;
 let producerTransport;
 let consumerTransport;
 let producer;
+let consumer;
 
 const createWorker = async () => {
   worker = await mediasoup.createWorker({
@@ -139,6 +140,12 @@ peers.on('connection', async socket => {
     callback({
       id: producer.id
     });
+  });
+
+  // see client's socket.emit('transport-recv-connect', ...)
+  socket.on('transport-recv-connect', async ({ dtlsParameters }) => {
+    console.log(`DTLS PARAMS: ${dtlsParameters}`);
+    await consumerTransport.connect({ dtlsParameters });
   });
 
 

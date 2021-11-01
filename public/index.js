@@ -12,7 +12,9 @@ socket.on('connection-success', ({ socketId }) => {
 let device;
 let rtpCapabilities;
 let producerTransport;
+let consumerTransport;
 let producer;
+let consumer;
 
 // https://mediasoup.org/documentation/v3/mediasoup-client/api/#ProducerOptions , https://mediasoup.org/documentation/v3/mediasoup-client/api/#transport-produce
 let params = {
@@ -147,7 +149,7 @@ const createSendTransport = () => {
         errback(error)
       }
     });    
-  });
+  });  
 };
 
 const connectSendTransport = async () => {
@@ -167,12 +169,45 @@ const connectSendTransport = async () => {
   });
 };
 
+const createRecvTransport = async () => {
+  // see server's socket.on('consume', sender?, ...) this is a call from Consumer, so sender = false
+  await socket.emit('createWebRtcTransport', { sender: false }, ({ params }) => {
+    // The server sends back params needed to create Send Transport on the client side
+    if (params.error) {
+      console.log(params.error);
+      return
+    }
+
+    console.log('params',params);
+
+    // creates a new WebRTC Transport to receive media based on server's consumer transport params https://mediasoup.org/documentation/v3/mediasoup-client/api/#device-createRecvTransport
+    consumerTransport = device.createRecvTransport(params);
+
+    // https://mediasoup.org/documentation/v3/communication-between-client-and-server/#producing-media this event is raised when a first call to transport.produce() is made see connectRecvTransport() below
+    consumerTransport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+      console.log('dtlsParameters',dtlsParameters);
+      try {
+        // Signal local DTLS parameters to the server side transport see server's socket.on('transport-recv-connect', ...)
+        await socket.emit('transport-recv-connect', {
+          dtlsParameters,
+        });
+
+        // Tell the transport that parameters were transmitted.
+        callback();
+      } catch (error) {
+        // Tell the transport that something was wrong
+        errback(error);
+      }
+    })
+  })
+}
+
 btnLocalVideo.addEventListener('click', getLocalStream);
 btnRtpCapabilities.addEventListener('click', getRtpCapabilities)
 btnDevice.addEventListener('click', createDevice)
 btnCreateSendTransport.addEventListener('click', createSendTransport)
 btnConnectSendTransport.addEventListener('click', connectSendTransport)
-// btnRecvSendTransport.addEventListener('click', createRecvTransport)
+btnRecvSendTransport.addEventListener('click', createRecvTransport)
 // btnConnectRecvTransport.addEventListener('click', connectRecvTransport)
 
 
