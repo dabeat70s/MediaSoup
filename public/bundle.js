@@ -14522,11 +14522,23 @@ const getRtpCapabilities = () => {
     rtpCapabilities = data.rtpCapabilities
   })
 };
+const createSendTransport = () => {
+  // see server's socket.on('createWebRtcTransport', sender?, ...) this is a call from Producer, so sender = true
+  socket.emit('createWebRtcTransport', { sender: true }, ({ params }) => {
+    // The server sends back params needed to create Send Transport on the client side
+    if (params.error) {
+      console.log(params.error)
+      return
+    }
+
+    console.log('socket createWebRtcTransport = ',params)
+  });
+};
 
 btnLocalVideo.addEventListener('click', getLocalStream);
 btnRtpCapabilities.addEventListener('click', getRtpCapabilities)
 btnDevice.addEventListener('click', createDevice)
-// btnCreateSendTransport.addEventListener('click', createSendTransport)
+btnCreateSendTransport.addEventListener('click', createSendTransport)
 // btnConnectSendTransport.addEventListener('click', connectSendTransport)
 // btnRecvSendTransport.addEventListener('click', createRecvTransport)
 // btnConnectRecvTransport.addEventListener('click', connectRecvTransport)

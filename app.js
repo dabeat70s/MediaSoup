@@ -34,6 +34,8 @@ const peers = io.of('/mediasoup');
 
 let worker;
 let router;
+let producerTransport;
+let consumerTransport;
 
 const createWorker = async () => {
   worker = await mediasoup.createWorker({
@@ -83,7 +85,7 @@ peers.on('connection', async socket =>{
   socket.on('disconnect', () => {
     // do some cleanup
     console.log('peer disconnected**')
-  })
+  });
 
    // worker.createRouter(options), options = { mediaCodecs, appData }, mediaCodecs -> defined above, appData -> custom application data - we are not supplying any, none of the two are required
   router = await worker.createRouter({ mediaCodecs });
@@ -99,4 +101,66 @@ peers.on('connection', async socket =>{
     callback({ rtpCapabilities })
   });
 
+    // Client emits a request to create server side Transport. We need to differentiate between the producer and consumer transports
+  socket.on('createWebRtcTransport', async ({ sender }, callback) => {
+    console.log(`Is this a sender request? ${sender}`)
+    // The client indicates if it is a producer or a consumer, if sender is true, indicates a producer else a consumer
+    if (sender)
+      producerTransport = await createWebRtcTransport(callback)
+    else
+      consumerTransport = await createWebRtcTransport(callback)
+  });
+
 });
+
+const createWebRtcTransport = async (callback) => {
+  try {
+    // https://mediasoup.org/documentation/v3/mediasoup/api/#WebRtcTransportOptions
+    const webRtcTransport_options = {
+      listenIps: [
+        {
+          ip: '0.0.0.0', // replace with relevant IP address
+          announcedIp: '127.0.0.1',
+        }
+      ],
+      enableUdp: true,
+      enableTcp: true,
+      preferUdp: true,
+    }
+
+    // https://mediasoup.org/documentation/v3/mediasoup/api/#router-createWebRtcTransport
+    let transport = await router.createWebRtcTransport(webRtcTransport_options)
+    console.log(`transport id: ${transport.id}`)
+
+    transport.on('dtlsstatechange', dtlsState => {
+      if (dtlsState === 'closed') {
+        transport.close()
+      }
+    })
+
+    transport.on('close', () => {
+      console.log('transport closed')
+    })
+
+    // send back to the client the following prameters
+    callback({
+      // https://mediasoup.org/documentation/v3/mediasoup-client/api/#TransportOptions
+      params: {
+        id: transport.id,
+        iceParameters: transport.iceParameters,
+        iceCandidates: transport.iceCandidates,
+        dtlsParameters: transport.dtlsParameters,
+      }
+    })
+
+    return transport
+
+  } catch (error) {
+    console.log(error)
+    callback({
+      params: {
+        error: error
+      }
+    })
+  }
+};
